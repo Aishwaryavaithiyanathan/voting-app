@@ -1,0 +1,93 @@
+version: "3.9"
+
+networks:
+  frontend:
+    driver: overlay
+  backend:
+    driver: overlay
+
+secrets:
+  voting_db_password:
+    external: true
+
+volumes:
+  db_data:
+
+services:
+  vote:
+    image: docker.io/aishwaryavaithiyanathan/vote:1.0
+    environment:
+      - REDIS_HOST=redis
+    ports:
+      - "5000:80"
+    networks: [frontend, backend]
+    deploy:
+      replicas: 3
+      restart_policy: { condition: on-failure }
+      update_config: { parallelism: 1, order: start-first, delay: 10s }
+
+  worker:
+    image: docker.io/aishwaryavaithiyanathan/worker:1.0
+    environment:
+      - REDIS_HOST=redis
+      - DB_HOST=db
+      - DB_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD_FILE=/run/secrets/voting_db_password
+      - POSTGRES_DB=voting
+    secrets: [voting_db_password]
+    networks: [backend]
+    deploy:
+      replicas: 2
+      restart_policy: { condition: on-failure }
+
+  result:
+    image: docker.io/aishwaryavaithiyanathan/result:1.0
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD_FILE=/run/secrets/voting_db_password
+      - POSTGRES_DB=voting
+    ports:
+      - "5001:80"
+    secrets: [voting_db_password]
+    networks: [backend]
+    deploy:
+      replicas: 2
+      restart_policy: { condition: on-failure }
+
+  redis:
+    image: redis:7-alpine
+    networks: [backend]
+    deploy:
+      replicas: 1
+
+  db:
+    image: docker.io/aishwaryavaithiyanathan/db:1.0
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD_FILE=/run/secrets/voting_db_password
+      - POSTGRES_DB=voting
+    secrets: [voting_db_password]
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks: [backend]
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+  visualizer:
+    image: dockersamples/visualizer:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks: [frontend]
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager

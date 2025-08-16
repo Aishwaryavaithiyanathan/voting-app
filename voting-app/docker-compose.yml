@@ -1,0 +1,63 @@
+version: "3.9"
+services:
+  vote:
+    build: ./vote
+    image: docker.io/aishwaryavaithiyanathan/vote:1.0
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+    ports:
+      - "5000:80"
+    depends_on:
+      - redis
+    networks: [frontend, backend]
+
+  worker:
+    build: ./worker
+    image: docker.io/aishwaryavaithiyanathan/worker:1.0
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    depends_on:
+      - redis
+      - db
+    networks: [backend]
+
+  result:
+    build: ./result
+    image: docker.io/aishwaryavaithiyanathan/result:1.0
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    ports:
+      - "5001:80"
+    depends_on:
+      - db
+    networks: [backend]
+
+  redis:
+    image: redis:7-alpine
+    networks: [backend]
+
+  db:
+    build: ./db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks: [backend]
+
+networks:
+  frontend:
+  backend:
+
+volumes:
+  db_data:

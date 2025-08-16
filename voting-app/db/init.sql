@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS votes (
+    option TEXT PRIMARY KEY,
+    count  INTEGER NOT NULL DEFAULT 0
+);
+INSERT INTO votes(option, count) VALUES ('cats', 0) ON CONFLICT DO NOTHING;
+INSERT INTO votes(option, count) VALUES ('dogs', 0) ON CONFLICT DO NOTHING;
